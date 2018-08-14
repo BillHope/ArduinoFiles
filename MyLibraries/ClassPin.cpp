@@ -10,6 +10,7 @@ enum PinType
 };
 
 // List for the pins
+const int ClassPin_MaxLenPinName = 100;
 
 class clPin
 {
@@ -19,8 +20,9 @@ private:
 	clPin* Prev;
 	clPin* Next;
 	unsigned short int pinNum;
+	char pinName[ClassPin_MaxLenPinName + 1]; 
 public:
-	clPin(int num,PinType t);
+	clPin(int num,char* name, PinType t);
 	~clPin();
 	clPin* getPrev();
 	clPin* getNext();
@@ -29,6 +31,7 @@ public:
 	int getValue();
 	int getNum();
 	void setValue(int i);
+	bool isName(char* name);
 };
 
 // The pin
@@ -42,8 +45,9 @@ private:
 public:
 	clPinList();
 	~clPinList();
-	void addPin(int num,PinType t);
+	void addPin(int num,char* name,PinType t);
 	void setPinValue(int num,int value);
+	void setPinValue(char* name,int value);
 };
 
 
@@ -58,8 +62,8 @@ clPinList::~clPinList(){
 
 }
 
-void clPinList::addPin(int num,PinType t){
-	clPin* Pin = new clPin(num,t);
+void clPinList::addPin(int num,char* name,PinType t){
+	clPin* Pin = new clPin(num,name,t);
 	numOfPins++;
 	if (pList == NULL)
 	{
@@ -75,7 +79,7 @@ void clPinList::addPin(int num,PinType t){
 	}
 }
 
-clPin::clPin(int num,PinType t){
+clPin::clPin(int num,char* name,PinType t){
 	Prev = NULL;
 	Next = NULL;
 	pinNum = num;
@@ -83,14 +87,20 @@ clPin::clPin(int num,PinType t){
 	pt = t;
 	switch (pt){
 		case ptDigitalInput:
-			pinMode(pinNum, INPUT);
+			pinMode(pinNum, INPUT); // arduino const
 			break;
 		case ptDigitalOutput:
-			pinMode(pinNum, OUTPUT);
+			pinMode(pinNum, OUTPUT); // arduino const
 			break;
 		default:
 			break;
 	}
+	if (strlen(name) <= ClassPin_MaxLenPinName)
+	{
+		strcpy(pinName,name);
+	}
+	else pinName[0] = 0;
+
 }
 
 clPin::~clPin(){
@@ -140,7 +150,29 @@ void clPinList::setPinValue(int num,int value){
 	clPin* p = pList;
 	while(p != NULL){
 		if(p->getNum() == num) // found the pin
+		{
 			p->setValue(value);
+			return;
+		}
 		p = p->getNext();
 	}
+}
+
+void clPinList::setPinValue(char* name,int value){
+	clPin* p = pList;
+	while(p != NULL){
+		if(p->isName(name)) // found the pin
+		{
+			p->setValue(value);
+			return;
+		}
+		p = p->getNext();
+	}
+}
+
+bool clPin::isName(char* name){
+	if (strcmp(name,pinName) == 0)
+	{
+		return true;
+	} else return false;
 }

@@ -12,15 +12,23 @@ void setup() {
   Msg.addString("This is fun");
   delay(5000);
   Serial.println(Msg.getString());
-  Pins.addPin(13,ptDigitalOutput);
+  Pins.addPin(13,"John",ptDigitalOutput);
+  Msg.printWords();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // Check for any new messages:
+  Msg.clear();
+  while(Serial.available()){
+    Msg.addChar(Serial.read());
+  }
+  if(Msg.isPopulated()){ // get this to do any further work necessary for the message
+    Msg.printWords();    // Process the message based on msg type (switch)
+  }
   if(ticker == 0)
   {
     ticker = 1;
-    Pins.setPinValue(13,100);
+    Pins.setPinValue("John",100);
   }
   else{
     ticker = 0;
