@@ -4,17 +4,44 @@
 
 
 void setup() {
+  Serial.begin(9600);
+  while(!Serial);
+  
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(13, OUTPUT);
-}
 
+  char* test = "Bill is so cool";
+  char * pch;
+  pch = strtok (test," ,.-"); // check on these tokens later
+  while (pch != NULL)
+  {
+    Serial.println(pch);
+    pch = strtok (NULL, " ,.-");
+  }
+  Serial.println(test);
+}
+char c;
 // the loop function runs over and over again forever
 void loop() {
-  digitalWrite(13, HIGH);   // turn the LED on (HIGH is the voltage level)
+
+  while(Serial.available())
+  {
+    c = Serial.read();
+    if (c == 10) Serial.println("\nTEN");
+    if (c == 13) Serial.println("\nTHIRTEEN");
+    Serial.print(c);
+    
+  }
+} 
+/*  
+ 
+ digitalWrite(13, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(100);                       // wait for a second
   digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
   delay(100);                       // wait for a second
-}
+*/
+
+
 /*
 Arduino: 1.8.5 (Windows 10), Board: "Arduino/Genuino Mega or Mega 2560, ATmega2560 (Mega 2560)"
 

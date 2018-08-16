@@ -1,64 +1,81 @@
+// remove this to switch off debugging messages
+#define DEBUG
+/* ------------------------------------------------------------------
+-- This keeps in tune with all other files
+------------------------------------------------------------------ */
+#ifdef DEBUG
+  const bool debug = true;
+#else
+  const bool debug = false;
+#endif
+
 #include "N:\10_General\40_Projects\50_ArduinoFiles\MyLibraries\ClassPin.cpp"
 #include "N:\10_General\40_Projects\50_ArduinoFiles\MyLibraries\ClassMsg.cpp"
 
-clMsg Msg;
-clPinList Pins;
+/* ------------------------------------------------------------------
+-- The pinters for the 'single' objects per arduino
+------------------------------------------------------------------ */
+clMsg* msg;
+clMsgList* ml;
+clPinList* pins;
+clPin* pin;
 
-// control the polling within the normal loop using millis
+/* ------------------------------------------------------------------
+-- control the polling within the normal loop using millis
+------------------------------------------------------------------ */
 unsigned long prevMillis = 0;
 unsigned long curMillis = 0;
 unsigned long targetMillis = 0;
-int pollingInterval = 1000; // half a second
+int pollingInterval = 100; // 1/10 of a second
 // -------------------------------------------------------
 
 
 void setup() {
 
   
-  // put your setup code here, to run once:
+  /* ------------------------------------------------------------------
+  -- Set up the hardware serial for coms with the Pi
+  ------------------------------------------------------------------ */
   Serial.begin(9600);
   while(!Serial);
   
-  Msg.addString("This is fun");
-  delay(3000);
-  Serial.println("About to print message");
-  //Serial.println(Msg.getString());
-  Serial.println("Message has been printed, maybe...");
-  delay(2000);
-  // Pins.addPin(13,"John",ptDigitalOutput);
-  Msg.printWords();
-  pinMode(13,OUTPUT);
-  // set up the timing measures
+  /* ------------------------------------------------------------------
+  -- Set the delay for the loop rather than an interupt
+  ------------------------------------------------------------------ */
   prevMillis = millis();
   curMillis = prevMillis;
   targetMillis = prevMillis + pollingInterval;
+
+  /* ------------------------------------------------------------------
+  -- Create the objects that will last for the program
+  ------------------------------------------------------------------ */
+  ml = new(clMsgList());
+  pins = new(clPinList());
+
 }
+
+/* ------------------------------------------------------------------
+-- variables used in the main loop
+------------------------------------------------------------------ */
 
 void loop() {
 
-  // Check for any new messages:
-  Msg.clear();
+  /* ------------------------------------------------------------------
+  -- Check and get all messages
+  ------------------------------------------------------------------ */
   while(Serial.available()){
-    Msg.addChar(Serial.read());
+    ml.addChar(Serial.read());
   }
-  if(Msg.isPopulated()){ // get this to do any further work necessary for the message
-    Msg.printWords();    // Process the message based on msg type (switch)
-  }
-  Pins.setPinValue(13,0);
-  digitalWrite(13,HIGH);
-  // delay loop until we have reached the interval
-  
-   do{
-    curMillis = millis();
-  } while((curMillis < targetMillis));    
-  targetMillis = curMillis + pollingInterval;
-  prevMillis = curMillis;
-  
-digitalWrite(13,LOW);
 
-  Pins.setPinValue(13,100);
+  /* ------------------------------------------------------------------
+  -- Action all the messages that are ready
+  -- this would include 'things' managed here
+  ------------------------------------------------------------------ */
   
-   do{
+  /* ------------------------------------------------------------------
+  -- Check all the inputs and send messages as required
+  ------------------------------------------------------------------ */
+  do{
     curMillis = millis();
   } while((curMillis < targetMillis));    
   targetMillis = curMillis + pollingInterval;
