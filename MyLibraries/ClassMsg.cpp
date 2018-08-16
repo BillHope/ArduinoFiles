@@ -13,6 +13,12 @@ enum MsgType
 	
 };
 
+bool Class_Msg_debug = false;
+
+/* ------------------------------------------------------------------
+-- Error handling will print to serial when debug on
+------------------------------------------------------------------ */
+
 class clMsg
 {
 private:
@@ -64,18 +70,10 @@ void clMsg::getWords(){
   }
 }
 
-
 void clMsg::addString(char* s){
-	for (int i = 0; i < MaxMsgLength; ++i)
-	{
-		Msg[i] = s[i];
-		if (s[i] = 0)
-		{
-			currentLength = i;
-			return;
-		}
-	}
-	Msg[MaxMsgLength] = 0; // in case s was full length or more
+	if (strlen(s) < MaxMsgLength)
+		strcpy(Msg,s);
+	currentLength = strlen(Msg);
 }
 
 char* clMsg::getString(){
