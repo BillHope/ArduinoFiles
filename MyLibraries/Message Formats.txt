@@ -1,0 +1,11 @@
+Message Formats
+
+Create Pin
+{
+	mtPin
+	PinName
+	PinNumber
+	PinType (in text)
+}
+
+mtPin,LED,13,ptDigitalOutput

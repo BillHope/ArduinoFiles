@@ -9,17 +9,10 @@ Currently the pins are digital only, input and output.
 Still to do are the analoque in and out, then the PWM pins
 
 ------------------------------------------------------------------ */
-
-
-enum PinType // note the pin creation expects a text version of these
-{
-	ptUnknown,
-	ptDigitalInput,
-	ptDigitalOutput,
-	ptPWM,
-	ptAnalogueInput,
-	ptAnalogueOutput
-};
+#ifndef CLASSPIN_CPP
+#define CLASSPIN_CPP
+// note the pin creation expects a text version of these
+#include "N:\10_General\40_Projects\50_ArduinoFiles\MyLibraries\const.cpp" 
 
 /* ------------------------------------------------------------------
 -- All the variables for this code will be prefixed with Class_Pin_
@@ -238,3 +231,4 @@ void clPinList::setPinValue(char* name,int value){
 	}
 }
 
+#endif

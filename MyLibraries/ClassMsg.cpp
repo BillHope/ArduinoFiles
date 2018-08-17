@@ -6,116 +6,145 @@
 // mtAddPin
 // addpin,Control/SittingRoom/Lights/LED,13,digitalOutput
 // 
-
-enum MsgType
-{
-	mtUnknown,
-	mtAddPin
-	
-};
-
-enum MsgStatus
-{
-	msUnknown,
-	msCreated,
-	msWip,
-	msMsgRecd,
-	msProcessed,
-	msInvalid = 100
-};
-
-//bool Class_Msg_debug = false;
+#ifndef CLASSMSG_CPP
+#define CLASSMSG_CPP
+#include "N:\10_General\40_Projects\50_ArduinoFiles\MyLibraries\const.cpp" 
 
 /* ------------------------------------------------------------------
 -- Error handling will print to serial when debug on
 ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------
+-- Life of a message
+
+enum MsgStatus
+{
+	msUnknown,
+	msCreated, Adding chars or a string
+	msComplete, All characters added, list of words created
+	msProcessed, Message has been dealt with (normally just deleted0)
+	msInvalid = 100
+};
+
+
+1: Add chars or a string
+2: when complete
+------------------------------------------------------------------ */
+
 class clMsg
 {
 private:
-#ifdef DEBUG
-	static const bool debug = true;
-#else
-	static const bool debug = false;
-#endif
+	// constants
 	static const unsigned short int MaxMsgLength = 300;
-	static const unsigned short int MaxWords = 30;
-	unsigned short int currentLength;
+	static const unsigned short int MaxWords = 130;
+	unsigned short int currentLength; // length of string
 	char Msg [MaxMsgLength + 1]; // extra slot for 0 terminator
 	char msgForWords [MaxMsgLength + 1]; // extra slot for 0 terminator
-	char * wrds[MaxWords]; 
-	void createWords();
+	char* wrds[MaxWords]; 
 	int numOfWords;
-	bool msgOpen;
+	int msgStatus;
+
+	int createWords();
+	void clear();
 public:
 	// bool getWord(int i,char* s);
 	clMsg* msgNext;
+
 	clMsg();
 	~clMsg();
-	void addChar(char c);
+	bool completeMsg();
+	int getStatus();
+	void printWords();
 	void addString(char* s);
 	char* getString();
-	void printWords();
-	void clear();
-	bool isPopulated();
-	void closeMsg();
+	FuncReturn addChar(char c);
 	//static void setDebug(bool b);
 };
 /* ------------------------------------------------------------------
--- Methods for msg class
+-- Private Methods for msg class
 ------------------------------------------------------------------ */
 
-//static void clMsg::setDebug(bool b){
-//	clMsg::debug = b;
-//}
-
-void clMsg::closeMsg(){
-	createWords();
-	msgOpen = false;
-}
-
-bool clMsg::isPopulated(){
-	if (currentLength > 0)
-	{
-		return true;
-	}
-	return false;
-}
-
-void clMsg::printWords(){
-	createWords();
-	Serial.println("---Message---");
-	for (int i = 0; i < numOfWords; i++)
-	{
-		Serial.println(wrds[i]);
-	}
-	Serial.println("--- End ---");
-}
-
-void clMsg::createWords(){
+int clMsg::createWords(){
   strcpy(msgForWords,Msg);
-  numOfWords = 0;
+  if (debug)
+  {
+  	Serial.println(Msg);
+  	Serial.println(msgForWords);
+  }
+  numOfWords = -1;
   char * pch;
   pch = strtok (msgForWords," ,.-"); // check on these tokens later
   while (pch != NULL)
   {
-  	msgForWords[numOfWords++] = pch;
+  	wrds[++numOfWords] = pch;
     pch = strtok (NULL, " ,.-");
+    if (debug)
+    {
+    	Serial.println(pch);
+    }
   }
+  numOfWords++;
+  return numOfWords;
+}
+
+/* ------------------------------------------------------------------
+-- Public Methods for msg class
+------------------------------------------------------------------ */
+clMsg::clMsg(){
+	clear();
+}
+
+clMsg::~clMsg(){
+	clear();
+}
+
+bool clMsg::completeMsg(){
+	if (createWords() > 0){
+		msgStatus = msComplete;
+		return true;
+	}else{
+		if (debug)
+		{
+			Serial.println("No words created string was only delimiters?");
+		}
+		return false;
+	}
+}
+
+int clMsg::getStatus(){
+	return msgStatus;
+}
+
+void clMsg::printWords(){
+	if (msgStatus >= msComplete)
+	{
+		Serial.println("---Message---");
+		for (int i = 0; i < numOfWords; i++)
+		{
+			if (wrds[i] != NULL)
+			{
+			 	Serial.println(wrds[i]);
+			} 
+		}
+		Serial.println("--- End ---");
+	}else if (debug)
+	{
+		Serial.println("err 002 Tried to print words when message not complete");
+	}
 }
 
 void clMsg::addString(char* s){
-	if (msgOpen)
+	if (msgStatus == msCreated)
 	{
 		if (strlen(s) < MaxMsgLength)
 			strcpy(Msg,s);
 		currentLength = strlen(Msg);
-		createWords();
+		//createWords();
 	}
 	else
-	if (true) // (debug)
+	if (debug) // (debug)
 	{
-		Serial.println("Trying to add string when msg is closed...");
+		Serial.println("err 003 Trying to add string when msg is not created...");
 	}
 }
 
@@ -123,29 +152,51 @@ char* clMsg::getString(){
 	return Msg;
 }
 
-clMsg::clMsg(){
-	clear();
-}
 
 void clMsg::clear(){
 	currentLength = 0;
 	Msg[0] = 0;
+	msgForWords[0] = 0;
 	numOfWords = 0;	
 	msgNext = NULL;
-	msgOpen = true;
-}
-
-clMsg::~clMsg(){
-	currentLength = 0;
-	Msg[0] = 0;
-}
-
-void clMsg::addChar(char c){
-	if (currentLength < (MaxMsgLength))
+	msgStatus = msCreated;
+	for (int i = 0; i < MaxWords; i++)
 	{
-		Msg [currentLength++] = c;
-		Msg [currentLength] = 0;
+		wrds[i] = NULL;
 	}
+}
+
+FuncReturn clMsg::addChar(char c){
+	if (msgStatus == msCreated)
+	{
+		if (debug) Serial.print(c);
+		if (c == 13 || c ==10 || c == 0)
+		{
+			// end of message
+			Msg [currentLength] = 0; // should already have been set
+			if (currentLength == 0)
+			{
+				return FR_BlankMsg;
+			}
+			createWords();
+			return FR_EndOfMsg;
+		}
+		if (currentLength < (MaxMsgLength))
+		{
+			Msg [currentLength++] = c;
+			Msg [currentLength] = 0;
+			return FR_OK;
+		}
+		if (debug)
+		{
+			Serial.println("*** issue trying to add char, too many chars??? Num is:");
+			Serial.println(currentLength);
+		}
+	}else if (debug)
+	{
+		Serial.println("err 004 trying to add characters when msg not in created status");
+	}
+	return FR_NG;
 }
 
 /* ------------------------------------------------------------------
@@ -156,26 +207,30 @@ This works as add to the bottom, take off the top.
 class clMsgList
 {
 private:
-#ifdef DEBUG
-	static const bool debug = true;
-#else
-	static const bool debug = false;
-#endif
+//#ifdef DEBUG
+//	static const bool debug = true;
+//#else
+//	static const bool debug = false;
+//#endif
 	clMsg* msgBuilding;
 	clMsg* msgCurrent;
 	clMsg* msgLast;
 	int numOfMsgs;
 	void createMsg();
-	void promoteBuildingMsg()
-	clMsg* removeCurrentMsg();
+	void promoteBuildingMsg();
 	void removeAllMsgs();
 public:
+	clMsg* removeCurrentMsg();
 	clMsgList();
 	~clMsgList();
 	void addString(char* s);
 	int howManyMsgs();
-	char* getString(int i = 0);
-	//static void setDebug(bool b);
+	char* getString();
+	char* getString(int i);
+	void printMsgWords(int i);
+	void printMsgWords();
+	void addChar(char c);
+	void delCurrentMsg();
 };
 /* ------------------------------------------------------------------
 -- Methods for message list
@@ -183,6 +238,59 @@ public:
 
 clMsgList::~clMsgList(){
 	removeAllMsgs();
+}
+
+void clMsgList::addChar(char c){
+	if (msgBuilding == NULL)
+	{
+		switch (c){
+			case 0:
+				if (debug)
+					Serial.println("got a 0 as 1st char for message");
+				return;
+				break;
+			case 10:
+				if (debug)
+					Serial.println("got a 10 as 1st char for message");
+				return;
+				break;
+			case 13:
+				if (debug)
+					Serial.println("got a 13 as 1st char for message");
+				return;
+				break;	
+			default:
+				createMsg();
+				break;
+		}
+	}
+	switch (msgBuilding->addChar(c)){
+		case FR_OK: break; // still adding chars
+		case FR_EndOfMsg:
+			promoteBuildingMsg(); 
+			break;
+		case FR_BlankMsg:
+			if (msgBuilding != NULL)
+			{
+				delete msgBuilding;
+				msgBuilding = NULL;
+			}
+			if (debug)
+			{
+				Serial.println("Err, Problem Blank msg");
+			}
+			break;
+		default:
+			if (msgBuilding != NULL)
+			{
+				delete msgBuilding;
+				msgBuilding = NULL;
+			}
+			if (debug)
+			{
+				Serial.println("Err, Problem adding char to msg");
+			}
+	}
 }
 
 void clMsgList::removeAllMsgs(){
@@ -215,13 +323,17 @@ clMsg* clMsgList::removeCurrentMsg(){
 		temp = msgCurrent->msgNext;
 		delete msgCurrent;
 		msgCurrent = temp;
+		numOfMsgs--;
 	}
 	return msgCurrent;
 }
 // ------------------------------------------------------------------
 // -- Get the string from a specific msg or the current :-)
 // ------------------------------------------------------------------
-char* clMsgList::getString(int i = 0){
+char* clMsgList::getString(){
+	getString(0);
+}
+char* clMsgList::getString(int i){
 	if ((numOfMsgs > 0) and (i < numOfMsgs))
 	{
 		if (i == 0)
@@ -244,6 +356,36 @@ char* clMsgList::getString(int i = 0){
 	return NULL;
 }
 
+void clMsgList::printMsgWords(){
+	printMsgWords(1);
+}
+
+void clMsgList::printMsgWords(int i){
+	//Serial.println(numOfMsgs);
+	if ((numOfMsgs > 0) and (i < numOfMsgs))
+	{
+		if (i == 1)
+		{
+			msgCurrent->printWords();
+			Serial.println("should have printed words");
+			return;
+		}else{
+			clMsg* m = msgCurrent->msgNext;
+			int n = 1;
+			while(n <= i){
+				m = m->msgNext;
+				i++;
+			}
+			return m->printWords();
+		}
+	}
+	if (debug)
+	{
+		Serial.println("Err 001 couldnt print message words");
+	}
+	return;
+}
+
 int clMsgList::howManyMsgs(){
 	return numOfMsgs;
 }
@@ -255,7 +397,8 @@ void clMsgList::addString(char* s){
 }
 
 clMsgList::clMsgList(){
-	msgNext = NULL;
+	msgCurrent = NULL;
+	msgBuilding = NULL;
 	msgLast = NULL;
 	numOfMsgs = 0;
 }
@@ -263,7 +406,7 @@ clMsgList::clMsgList(){
 void clMsgList::createMsg(){
 	if (msgBuilding == NULL)
 	{
-		msgBuilding = new(clMsg());
+		msgBuilding = new clMsg();
 	}
 	else
 		if (debug)
@@ -273,19 +416,38 @@ void clMsgList::createMsg(){
 }
 
 void clMsgList::promoteBuildingMsg(){
-	// check last pointer, if there add on end
-	numOfMsgs++;
-	if (msgCurrent == NULL)
-	{
-		msgCurrent = msgBuilding;
-		msgLast = msgCurrent;
-		msgBuilding = NULL;
+	if (msgBuilding->completeMsg()){
+		numOfMsgs++;
+		if (msgCurrent == NULL)
+		{
+			msgCurrent = msgBuilding;
+			msgLast = msgCurrent;
+		}
+		else
+		{
+			// add it to the end
+			msgLast->msgNext = msgBuilding;
+			msgLast = msgLast->msgNext;
+		}
+	}else{
+		delete msgBuilding;
+		if (debug)
+		{
+			Serial.println("discarded building message");
+		}
 	}
-	else
+	msgBuilding = NULL;
+}
+
+void clMsgList::delCurrentMsg(){
+	// check last pointer, if there add on end
+	if (msgCurrent != NULL)
 	{
-		// add it to the end
-		msgLast->msgNext = msgBuilding;
-		msgLast = msgLast->msgNext;
-		msgBuilding = NULL;
+		clMsg* temp = msgCurrent->msgNext;
+		delete msgCurrent;
+		msgCurrent = temp;
+		numOfMsgs--;
 	}
 }
+
+#endif
